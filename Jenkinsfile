@@ -1,67 +1,93 @@
 pipeline {
     agent any
-   
     environment{
         SCANNER_HOME= tool 'sonar-scanner'
     }
 
     stages {
-        stage('git-checkout') {
-            steps {
-                git branch: 'main', changelog: false, poll: false, url: 'https://github.com/nahidkishore99/Node-React-Full-Stack-App.git'
+
+      stage('Clean Workspace'){
+            steps{
+                cleanWs()
             }
         }
 
-    stage('Sonar Analysis') {
+      
+           stage('Git-Checkout') {
             steps {
-                   sh ''' $SCANNER_HOME/bin/sonar-scanner -Dsonar.url=URL_OF_SONARQUBE -Dsonar.login=TOKEN_OF_SONARQUBE -Dsonar.projectName=to-do-app \
-                   -Dsonar.sources=. \
-                   -Dsonar.projectKey=to-do-app '''
-               }
+                git branch: 'main', changelog: false, poll: false, url: 'https://github.com/nahidkishore/Node-React-Full-Stack-App.git'
             }
-           
-		stage('OWASP Dependency Check') {
+        }
+        
+
+        
+
+         stage("Sonarqube Analysis "){
+            steps{
+                withSonarQubeEnv('sonar-server') {
+                    sh ''' $SCANNER_HOME/bin/sonar-scanner -Dsonar.projectName=full-stack-app \
+                    -Dsonar.sources=. \
+                    -Dsonar.projectKey=full-stack-app '''
+                }
+            }
+        }
+
+        stage("SonarQube Quality Gate"){
+       
+             steps {
+                waitForQualityGate abortPipeline: false, credentialsId: 'sonar-token' 
+         }
+
+     }
+      
+
+      stage("OWASP Dependency Check"){
+           steps{
+                dependencyCheck additionalArguments: '--scan ./' , odcInstallation: 'DP-Check'
+                dependencyCheckPublisher pattern: '**/dependency-check-report.xml'
+            }
+        }
+
+        stage('TRIVY FS SCAN') {
             steps {
-               dependencyCheck additionalArguments: '--scan ./', odcInstallation: 'DP'
-                    dependencyCheckPublisher pattern: '**/dependency-check-report.xml'
+                sh "trivy fs . > trivyfs.txt"
+            }
+        }
+
+
+        stage("Build and Push to Docker Hub"){
+               steps{
+                   
+                echo 'login into docker hub and pushing image....'
+                withCredentials([usernamePassword(credentialsId: 'dockerHub', passwordVariable: 'dockerHubPassword', usernameVariable: 'dockerHubUser')]){
+                     sh "docker build -t node-full-stack-app:latest -f backend/Dockerfile ."
+                     sh "docker tag node-full-stack-app ${env.dockerHubUser}/node-full-stack-app:latest"
+                     sh "docker login -u ${env.dockerHubUser} -p ${env.dockerHubPassword}"
+                     sh "docker push ${env.dockerHubUser}/node-full-stack-app:latest"
+
+
+               }
+           }
+         }
+
+
+         stage("TRIVY Docker Scan"){
+            steps{
+
+                withCredentials([usernamePassword(credentialsId: 'dockerHub', passwordVariable: 'dockerHubPassword', usernameVariable: 'dockerHubUser')]){
+                     
+                    sh "trivy image ${env.dockerHubUser}/node-full-stack-app:latest" 
+
+               }
+                
+            }
+        }
+
+         stage("Deploy to Docker Container"){
+            steps{
+                sh " docker run -d --name node-full-stack-app -p 4000:4000 nahid0002/node-full-stack-app:latest "
             }
         }
      
-
-         stage('Docker Build') {
-            steps {
-               script{
-                   withDockerRegistry(credentialsId: '9ea0c4b0-721f-4219-be62-48a976dbeec0') {
-                    sh "docker build -t  todoapp:latest -f docker/Dockerfile . "
-                    sh "docker tag todoapp:latest username/todoapp:latest "
-                 }
-               }
-            }
-        }
-
-        stage('Docker Push') {
-            steps {
-               script{
-                   withDockerRegistry(credentialsId: '9ea0c4b0-721f-4219-be62-48a976dbeec0') {
-                    sh "docker push  username/todoapp:latest "
-                 }
-               }
-            }
-        }
-        stage('trivy') {
-            steps {
-               sh " trivy username/todoapp:latest"
-            }
-        }
-		stage('Deploy to Docker') {
-            steps {
-               script{
-                   withDockerRegistry(credentialsId: '9ea0c4b0-721f-4219-be62-48a976dbeec0') {
-                    sh "docker run -d --name to-do-app -p 4000:4000 username/todoapp:latest "
-                 }
-               }
-            }
-        }
-
     }
 }

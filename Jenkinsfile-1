@@ -6,7 +6,7 @@ pipeline {
 
     stages {
 
-      stage('clean workspace'){
+      stage('Clean Workspace'){
             steps{
                 cleanWs()
             }
@@ -39,11 +39,18 @@ pipeline {
          }
 
      }
+      
 
       stage("OWASP Dependency Check"){
            steps{
                 dependencyCheck additionalArguments: '--scan ./' , odcInstallation: 'DP-Check'
                 dependencyCheckPublisher pattern: '**/dependency-check-report.xml'
+            }
+        }
+
+        stage('TRIVY FS SCAN') {
+            steps {
+                sh "trivy fs . > trivyfs.txt"
             }
         }
 
@@ -53,7 +60,7 @@ pipeline {
                    
                 echo 'login into docker hub and pushing image....'
                 withCredentials([usernamePassword(credentialsId: 'dockerHub', passwordVariable: 'dockerHubPassword', usernameVariable: 'dockerHubUser')]){
-                     sh "docker build . -t node-full-stack-app"
+                     sh "docker build -t node-full-stack-app:latest -f backend/Dockerfile ."
                      sh "docker tag node-full-stack-app ${env.dockerHubUser}/node-full-stack-app:latest"
                      sh "docker login -u ${env.dockerHubUser} -p ${env.dockerHubPassword}"
                      sh "docker push ${env.dockerHubUser}/node-full-stack-app:latest"
