@@ -20,8 +20,6 @@ pipeline {
         }
         
 
-        
-
          stage("Sonarqube Analysis "){
             steps{
                 withSonarQubeEnv('sonar-server') {
@@ -39,7 +37,27 @@ pipeline {
          }
 
      }
-      
+     
+    stage('Install Dependencies') {
+      parallel {
+        stage('Backend') {
+          steps {
+            dir('backend') {
+              sh 'npm ci'  // Use `npm ci` for clean installs
+            }
+          }
+        }
+
+        stage('Frontend') {
+          steps {
+            dir('frontend') {
+              sh 'npm ci'
+            }
+          }
+        }
+      }
+    }
+         
 
       stage("OWASP Dependency Check"){
            steps{
