@@ -1,0 +1,57 @@
+pipeline {
+    agent any
+    environment{
+        SCANNER_HOME= tool 'sonar-scanner'
+    }
+
+    stages {
+           stage('Git-Checkout') {
+            steps {
+                git branch: 'main', changelog: false, poll: false, url: 'https://github.com/nahidkishore/Node-React-Full-Stack-App.git'
+            }
+        }
+
+         stage("Sonarqube Analysis "){
+            steps{
+                withSonarQubeEnv('sonar-server') {
+                    sh ''' $SCANNER_HOME/bin/sonar-scanner -Dsonar.projectName=full-stack-app \
+                    -Dsonar.sources=. \
+                    -Dsonar.projectKey=full-stack-app '''
+                }
+            }
+        }
+
+        stage("SonarQube Quality Gate"){
+       
+             steps {
+                waitForQualityGate abortPipeline: false, credentialsId: 'sonar-token' 
+         }
+
+     }
+
+      stage("OWASP Dependency Check"){
+           steps{
+                dependencyCheck additionalArguments: '--scan ./' , odcInstallation: 'DP-Check'
+                dependencyCheckPublisher pattern: '**/dependency-check-report.xml'
+            }
+        }
+
+
+        stage("Build and Push to Docker Hub"){
+               steps{
+                   
+                echo 'login into docker hub and pushing image....'
+                withCredentials([usernamePassword(credentialsId: 'dockerHub', passwordVariable: 'dockerHubPassword', usernameVariable: 'dockerHubUser')]){
+                     sh "docker build . -t node-full-stack-app -f backend
+/Dockerfile"
+                     sh "docker tag node-full-stack-app ${env.dockerHubUser}/node-full-stack-app:latest"
+                     sh "docker login -u ${env.dockerHubUser} -p ${env.dockerHubPassword}"
+                     sh "docker push ${env.dockerHubUser}/node-full-stack-app:latest"
+
+
+               }
+           }
+         }
+     
+    }
+}
