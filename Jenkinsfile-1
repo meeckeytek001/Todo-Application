@@ -5,11 +5,22 @@ pipeline {
     }
 
     stages {
+
+      stage('clean workspace'){
+            steps{
+                cleanWs()
+            }
+        }
+
+      
            stage('Git-Checkout') {
             steps {
                 git branch: 'main', changelog: false, poll: false, url: 'https://github.com/nahidkishore/Node-React-Full-Stack-App.git'
             }
         }
+        
+
+        
 
          stage("Sonarqube Analysis "){
             steps{
@@ -42,8 +53,7 @@ pipeline {
                    
                 echo 'login into docker hub and pushing image....'
                 withCredentials([usernamePassword(credentialsId: 'dockerHub', passwordVariable: 'dockerHubPassword', usernameVariable: 'dockerHubUser')]){
-                     sh "docker build . -t node-full-stack-app -f backend
-/Dockerfile"
+                     sh "docker build . -t node-full-stack-app"
                      sh "docker tag node-full-stack-app ${env.dockerHubUser}/node-full-stack-app:latest"
                      sh "docker login -u ${env.dockerHubUser} -p ${env.dockerHubPassword}"
                      sh "docker push ${env.dockerHubUser}/node-full-stack-app:latest"
@@ -52,6 +62,25 @@ pipeline {
                }
            }
          }
+
+
+         stage("TRIVY Docker Scan"){
+            steps{
+
+                withCredentials([usernamePassword(credentialsId: 'dockerHub', passwordVariable: 'dockerHubPassword', usernameVariable: 'dockerHubUser')]){
+                     
+                    sh "trivy image ${env.dockerHubUser}/node-full-stack-app:latest" 
+
+               }
+                
+            }
+        }
+
+         stage("Deploy to Docker Container"){
+            steps{
+                sh " docker run -d --name node-full-stack-app -p 4000:4000 nahid0002/node-full-stack-app:latest "
+            }
+        }
      
     }
 }
