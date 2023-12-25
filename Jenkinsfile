@@ -1,5 +1,8 @@
 pipeline {
     agent any
+    tools{
+        nodejs 'node16'
+    }
     environment{
         SCANNER_HOME= tool 'sonar-scanner'
     }
@@ -20,6 +23,8 @@ pipeline {
         }
         
 
+        
+
          stage("Sonarqube Analysis "){
             steps{
                 withSonarQubeEnv('sonar-server') {
@@ -38,26 +43,8 @@ pipeline {
 
      }
      
-    stage('Install Dependencies') {
-      parallel {
-        stage('Backend') {
-          steps {
-            dir('backend') {
-              sh 'npm ci'  // Use `npm ci` for clean installs
-            }
-          }
-        }
-
-        stage('Frontend') {
-          steps {
-            dir('frontend') {
-              sh 'npm ci'
-            }
-          }
-        }
-      }
-    }
-         
+       
+      
 
       stage("OWASP Dependency Check"){
            steps{
@@ -71,6 +58,15 @@ pipeline {
                 sh "trivy fs . > trivyfs.txt"
             }
         }
+        
+         stage('Build Frontend') {
+            steps {
+                dir('frontend') {
+                    sh 'npm install'
+                    sh 'npm run build'
+                    }
+                    }
+                    }
 
 
         stage("Build and Push to Docker Hub"){
