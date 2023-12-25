@@ -64,9 +64,10 @@ pipeline {
                 dir('frontend') {
                     sh 'npm install'
                     sh 'npm run build'
-                    }
-                    }
-                    }
+                    
+                }
+            }
+        }
 
 
         stage("Build and Push to Docker Hub"){
@@ -102,6 +103,44 @@ pipeline {
                 sh " docker run -d --name node-full-stack-app -p 4000:4000 nahid0002/node-full-stack-app:latest "
             }
         }
+
+        stage('Deploy To Kubernetes') {
+            steps {
+                script {
+                   
+                    withKubeConfig([credentialsId: 'K8s', serverUrl: '']) {
+                        sh ('kubectl apply -f deployment.yaml')
+                    }
+                }
+            }
+        }
+
+        stage('Clean up Containers') {   //if container runs it will stop and remove this block
+          steps {
+           script {
+             try {
+                sh 'docker stop node-full-stack-app'
+                sh 'docker rm node-full-stack-app'
+                } catch (Exception e) {
+                  echo "Container node-full-stack-app not found, moving to next stage"  
+                }
+            }
+          }
+        }
      
     }
+
+
+ post {
+            always {
+        emailext attachLog: true,
+            subject: "'${currentBuild.result}'",
+            body: "Project: ${env.JOB_NAME}<br/>" +
+                "Build Number: ${env.BUILD_NUMBER}<br/>" +
+                "URL: ${env.BUILD_URL}<br/>",
+            to: 'nahidkishore99@gmail.com',
+            attachmentsPattern: 'trivy.txt'
+        }
+        }
+
 }
