@@ -15,7 +15,7 @@ spec:
         app: full-stack-app
     spec:
       containers:
-        - name: bfull-stack-app
+        - name: full-stack-app
           image: nahid0002/node-full-stack-app:latest
           ports:
             - containerPort: 4000
