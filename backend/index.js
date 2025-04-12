@@ -1,36 +1,82 @@
-const express = require('express')
-const app = express()
-const port = 4000
+// index.js
+require('dotenv').config();
+const express = require('express');
+const cors = require('cors');
+const pool = require('./db'); // Import the connection pool from db.js
 
-const tasks = {}
+const app = express();
+const port = process.env.PORT || 4000;
 
-app.use(express.static('build'));
+app.use(cors({ origin: "*" }));
+app.use(express.json());
 
-app.use(express.json())
+// Test the connection pool on startup
+(async () => {
+  try {
+    const conn = await pool.getConnection();
+    console.log('Connected to MySQL database.');
+    conn.release();
+  } catch (err) {
+    console.error('Error connecting to MySQL database:', err);
+  }
+})();
 
-app.get('/tasks', (req, res) => {    
-        res.send(tasks)
-})
+// GET all tasks
+app.get('/tasks', async (req, res) => {
+  try {
+    const [rows] = await pool.query('SELECT * FROM tasks ORDER BY due_date ASC');
+    res.json(rows);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to fetch tasks' });
+  }
+});
 
-app.post('/tasks', (req,res)=>{
-    const requestBody = req.body
-    tasks[requestBody.task_id] = {}
-    tasks[requestBody.task_id].taskName = requestBody.task_name
-    tasks[requestBody.task_id].status = "undone"
+// POST a new task
+app.post('/tasks', async (req, res) => {
+  const { task_name, description, due_date, priority } = req.body;
+  try {
+    const [result] = await pool.query(
+      'INSERT INTO tasks (task_name, description, due_date, priority, status) VALUES (?, ?, ?, ?, ?)',
+      [task_name, description, due_date, priority, 'undone']
+    );
+    const [newTask] = await pool.query('SELECT * FROM tasks WHERE id = ?', [result.insertId]);
+    res.status(201).json(newTask[0]);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to create task' });
+  }
+});
 
-    res.send(tasks[requestBody.task_id])
-})
+// DELETE a task
+app.delete('/tasks/:id', async (req, res) => {
+  const taskId = req.params.id;
+  try {
+    await pool.query('DELETE FROM tasks WHERE id = ?', [taskId]);
+    res.status(204).send();
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to delete task' });
+  }
+});
 
-app.delete('/tasks/:id', (req,res)=>{
-    const task_id = req.params.id
-    delete tasks[task_id]
-    res.send({})
-})
-
+// PUT update a task
+app.put('/tasks/:id', async (req, res) => {
+  const taskId = req.params.id;
+  const { task_name, description, due_date, priority, status } = req.body;
+  try {
+    await pool.query(
+      'UPDATE tasks SET task_name = ?, description = ?, due_date = ?, priority = ?, status = ? WHERE id = ?',
+      [task_name, description, due_date, priority, status, taskId]
+    );
+    const [updatedTask] = await pool.query('SELECT * FROM tasks WHERE id = ?', [taskId]);
+    res.json(updatedTask[0]);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to update task' });
+  }
+});
 
 app.listen(port, () => {
-  console.log(`Todo app listening at http://localhost:${port}`)
-  console.log('GET    ---   /tasks')
-  console.log('POST   ---   /tasks')
-  console.log('DELETE ---   /tasks')
-})
+  console.log(`Todo app listening at http://localhost:${port}`);
+});

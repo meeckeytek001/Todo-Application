@@ -1,6 +1,6 @@
 import axios from 'axios'
 
-const baseURL = ''
+const baseURL = 'http://localhost:4000'
 
 export const postTask = async (reqBody) => {
     const {data} = await axios.post(`${baseURL}/tasks`,reqBody)
