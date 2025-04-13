@@ -1,6 +1,3 @@
-# Docs for the Azure Web Apps Deploy action: https://github.com/Azure/webapps-deploy
-# More GitHub Actions for Azure: https://github.com/Azure/actions
-
 name: Build and deploy Node.js app to Azure Web App - backend-demo-419
 
 on:
@@ -16,7 +13,7 @@ jobs:
       run:
         working-directory: ./backend
     permissions:
-      contents: read #This is required for actions/checkout
+      contents: read  # This is required for actions/checkout
 
     steps:
       - uses: actions/checkout@v4
@@ -35,15 +32,18 @@ jobs:
       - name: Zip artifact for deployment
         run: zip release.zip ./* -r
 
+      - name: List files before upload  # Debug step
+        run: ls -la release.zip
+
       - name: Upload artifact for deployment job
         uses: actions/upload-artifact@v4
         with:
           name: node-app
-          path: release.zip
+          path: ./backend/release.zip  # Ensure correct path
 
   deploy:
     runs-on: ubuntu-latest
-    needs: build
+    needs: build  # This ensures the deploy job waits for the build job
     environment:
       name: 'Production'
       url: ${{ steps.deploy-to-webapp.outputs.webapp-url }}
@@ -53,10 +53,13 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: node-app
-          path: ${{ github.repository }}/backend/
+          path: ./backend/  # Correct path where artifact will be extracted
+
+      - name: List files after download  # Debug step
+        run: ls -la ./backend/
 
       - name: Unzip artifact for deployment
-        run: unzip release.zip
+        run: unzip ./backend/release.zip -d ./backend/  # Unzip to backend folder
       
       - name: 'Deploy to Azure Web App'
         id: deploy-to-webapp
@@ -64,5 +67,5 @@ jobs:
         with:
           app-name: 'backend-demo-419'
           slot-name: 'Production'
-          package: .
+          package: ./backend/  # Ensure the correct path is used
           publish-profile: ${{ secrets.AZUREAPPSERVICE_PUBLISHPROFILE_CA873F177A1B4A5D8C69432829B1A128 }}
