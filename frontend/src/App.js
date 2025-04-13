@@ -3,7 +3,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import "./App.css";
 
 // Define the base URL once here
-const BASE_URL = "http://localhost:4000";
+const BASE_URL = "https://backend-demo-419.azurewebsites.net";
 
 export default function TodoApp() {
   const [tasks, setTasks] = useState([]);
