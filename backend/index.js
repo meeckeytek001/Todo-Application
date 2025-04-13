@@ -21,6 +21,11 @@ app.use(express.json());
   }
 })();
 
+// Indidcate that it is working
+app.get('/', async (req, res) => {
+    res.status(200).json({ message: 'API working as expected' });
+});
+
 // GET all tasks
 app.get('/tasks', async (req, res) => {
   try {
