@@ -53,7 +53,7 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: node-app
-          path: ./backend/artifacts
+          path: ${{ github.repository }}/backend/
 
       - name: Unzip artifact for deployment
         run: unzip release.zip
