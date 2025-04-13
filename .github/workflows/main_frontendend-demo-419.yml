@@ -1,4 +1,4 @@
-name: Build and deploy Node.js app to Azure Web App - backend-demo-419
+name: Build and deploy Node.js app to Azure Web App - frontendend-demo-419
 
 on:
   push:
@@ -11,7 +11,7 @@ jobs:
     runs-on: ubuntu-latest
     defaults:
       run:
-        working-directory: ./backend
+        working-directory: ./frontend
     permissions:
       contents: read  # This is required for actions/checkout
 
@@ -30,16 +30,16 @@ jobs:
           npm run test --if-present
 
       - name: Zip artifact for deployment
-        run: zip release.zip ./* -r
+        run: zip release.zip ./build/* -r
 
-      - name: Check release.zip exists before upload  # Debug step
+      - name: List files before upload  # Debug step
         run: ls -la release.zip
 
       - name: Upload artifact for deployment job
         uses: actions/upload-artifact@v4
         with:
           name: node-app
-          path: release.zip
+          path: ./frontend/release.zip  # Ensure correct path
 
   deploy:
     runs-on: ubuntu-latest
@@ -53,16 +53,19 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: node-app
-          path: ./backend/  # Correct path where artifact will be extracted
+          path: ./frontend/  # Correct path where artifact will be extracted
+
+      - name: List files after download  # Debug step
+        run: ls -la ./frontend/
 
       - name: Unzip artifact for deployment
-        run: unzip ./backend/release.zip -d ./backend/  # Unzip to backend folder
+        run: unzip ./frontend/release.zip -d ./frontend/  # Unzip to frontend folder
       
       - name: 'Deploy to Azure Web App'
         id: deploy-to-webapp
         uses: azure/webapps-deploy@v3
         with:
-          app-name: 'backend-demo-419'
+          app-name: 'frontendend-demo-419'
           slot-name: 'Production'
-          package: ./backend/  # Ensure the correct path is used
+          package: ./frontend/  # Ensure the correct path is used
           publish-profile: ${{ secrets.AZUREAPPSERVICE_PUBLISHPROFILE_CA873F177A1B4A5D8C69432829B1A128 }}
